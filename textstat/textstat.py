@@ -6,7 +6,6 @@ from typing import Union, List, Set
 
 import pkg_resources
 from functools import lru_cache
-from pyphen import Pyphen
 
 langs = {
     "en": {  # Default config
@@ -178,25 +177,6 @@ class textstatistics:
         """
         self.__rm_apostrophe = rm_apostrophe
 
-    def set_lang(self, lang: str) -> None:
-        """Set the language of your text strings.
-
-        The default locale ID is 'en_US'.
-
-        Parameters
-        ----------
-        lang : str
-            A locale ID.
-
-        Returns
-        -------
-        None.
-
-        """
-        self.__lang = lang
-        self.pyphen = Pyphen(lang=self.__lang)
-        self._cache_clear()
-
     @lru_cache(maxsize=128)
     def char_count(self, text: str, ignore_spaces: bool = True) -> int:
         """Count the number of characters in a text.
@@ -325,7 +305,9 @@ class textstatistics:
 
     @lru_cache(maxsize=128)
     def syllable_count(self, text: str, lang: Union[str, None] = None) -> int:
-        """Calculate syllable words in a text using pyphen.
+        """Calculate syllable words in a text using regex. By changing from pyphen to 
+        regex, we cannot fully guarantee results in each language, but it definetly works
+        fine for english and german.
 
         Parameters
         ----------
@@ -354,12 +336,36 @@ class textstatistics:
         text = text.lower()
         text = self.remove_punctuation(text)
 
-        if not text:
-            return 0
+        #######
+        # This part of the code was changed to remove the pyphen dependency
+        # instead syllables are counted with regex, as created here: https://datascience.stackexchange.com/a/89312
+        # I claim no ownership of this piece of code, it was fully copied from hauntsaninja's answer
 
-        count = 0
-        for word in text.split():
-            count += len(self.pyphen.positions(word)) + 1
+        VOWEL_RUNS = re.compile("[aeiouy]+", flags=re.I)
+        EXCEPTIONS = re.compile(
+            # fixes trailing e issues:
+            # smite, scared
+            "[^aeiou]e[sd]?$|"
+            # fixes adverbs:
+            # nicely
+            + "[^e]ely$",
+            flags=re.I
+        )
+        ADDITIONAL = re.compile(
+            # fixes incorrect subtractions from exceptions:
+            # smile, scarred, raises, fated
+            "[^aeioulr][lr]e[sd]?$|[csgz]es$|[td]ed$|"
+            # fixes miscellaneous issues:
+            # flying, piano, video, prism, fire, evaluate
+            + ".y[aeiou]|ia(?!n$)|eo|ism$|[^aeiou]ire$|[^gq]ua",
+            flags=re.I
+        )
+        
+        vowel_runs = len(VOWEL_RUNS.findall(text))
+        exceptions = len(EXCEPTIONS.findall(text))
+        additional = len(ADDITIONAL.findall(text))
+        count = max(1, vowel_runs - exceptions + additional)
+
         return count
 
     @lru_cache(maxsize=128)
