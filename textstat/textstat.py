@@ -95,9 +95,6 @@ class textstatistics:
     __rm_apostrophe = True
     text_encoding = "utf-8"
 
-    def __init__(self):
-        self.set_lang(self.__lang)
-
     def _cache_clear(self) -> None:
         caching_methods = [
             method for method in dir(self)
@@ -304,7 +301,7 @@ class textstatistics:
         return count
 
     @lru_cache(maxsize=128)
-    def syllable_count(self, text: str, lang: Union[str, None] = None) -> int:
+    def syllable_count(self, text: str) -> int:
         """Calculate syllable words in a text using regex. By changing from pyphen to 
         regex, we cannot fully guarantee results in each language, but it definetly works
         fine for english and german.
@@ -313,23 +310,12 @@ class textstatistics:
         ----------
         text : str
             A text string.
-        lang : str or None
-            The language of the text.
-
-            .. deprecated:: 0.5.7
 
         Returns
         -------
         int
             Number of syllables in `text`.
         """
-        if lang:
-            warnings.warn(
-                "The 'lang' argument has been moved to "
-                "'textstat.set_lang(<lang>)'. This argument will be removed "
-                "in the future.",
-                DeprecationWarning
-            )
         if isinstance(text, bytes):
             text = text.decode(self.text_encoding)
 
